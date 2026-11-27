@@ -25,7 +25,7 @@ export default function PhotoZest(){
  const [page,setPage]=useState<Page>('home');const [photos,setPhotos]=useState<RecordPhoto[]>([]);
  const [loading,setLoading]=useState(false);const [processed,setProcessed]=useState(0);const [total,setTotal]=useState(0);const [status,setStatus]=useState('');
  const [search,setSearch]=useState('');const [category,setCategory]=useState<Category|'All'>('All');const [place,setPlace]=useState('All places');const [showFilters,setShowFilters]=useState(false);
- const [enhanced,setEnhanced]=useState(photoZestFeatures.enhancedRecognition);const [ocr,setOcr]=useState(false);
+ const [enhanced,setEnhanced]=useState<boolean>(photoZestFeatures.enhancedRecognition);const [ocr,setOcr]=useState(false);
  const [selection,setSelection]=useState<Set<string>>(new Set());const [selectMode,setSelectMode]=useState(false);
  const [detail,setDetail]=useState<string|null>(null);const [collections,setCollections]=useState<Record<string,string[]>>({});
  const [newCollection,setNewCollection]=useState(false);const [collectionName,setCollectionName]=useState('');
