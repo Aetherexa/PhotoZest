@@ -1,0 +1,11 @@
+{
+  "platform": "web",
+  "profile": "preview",
+  "features": {
+    "enhancedRecognition": true,
+    "screenshotOcr": true,
+    "smartCollections": true,
+    "browserSharing": true,
+    "folderImport": true
+  }
+}

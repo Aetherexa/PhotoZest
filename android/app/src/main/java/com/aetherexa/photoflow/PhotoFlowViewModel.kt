@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aetherexa.photoflow.core.Category
+import com.aetherexa.photoflow.core.PhotoZestFeatureFlags
 import com.aetherexa.photoflow.core.CategoryEngine
 import com.aetherexa.photoflow.core.SmartTag
 import com.aetherexa.photoflow.core.ScreenshotSignals
@@ -47,8 +48,8 @@ class PhotoFlowViewModel(private val app: Application) : AndroidViewModel(app) {
         private set
     var message by mutableStateOf("Choose a trip folder to begin")
         private set
-    var useOnDeviceAI by mutableStateOf(true)
-    var useScreenshotOCR by mutableStateOf(true)
+    var useOnDeviceAI by mutableStateOf(PhotoZestFeatureFlags.onDeviceRecognition)
+    var useScreenshotOCR by mutableStateOf(PhotoZestFeatureFlags.screenshotOcr)
     var inputKind by mutableStateOf(InputKind.FOLDER)
         private set
     var linkedOriginals by mutableStateOf(0)
@@ -110,7 +111,7 @@ class PhotoFlowViewModel(private val app: Application) : AndroidViewModel(app) {
                 VisionAnalyzer(app.contentResolver).use { analyzer ->
                     for (source in sources) {
                         try {
-                            val analyzed = analyzer.analyze(source, useOnDeviceAI, useScreenshotOCR)
+                            val analyzed = analyzer.analyze(source, useOnDeviceAI && PhotoZestFeatureFlags.onDeviceRecognition, useScreenshotOCR && PhotoZestFeatureFlags.screenshotOcr)
                             val edits = manualEdits.load(source, analyzed.metadata)
                             val result = analyzed.copy(manualTags = edits.tags, manualCity = edits.city)
                             // Mark duplicate *suggestions* only, without deleting or moving photos.
@@ -252,6 +253,10 @@ class PhotoFlowViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun moveToFolder(destinationUri: Uri, originals: Set<Uri>, layout: FolderLayout, collectionName: String) {
+        if (!PhotoZestFeatureFlags.originalFolderMoves) {
+            message = "Moving original files is disabled for this PhotoZest release."
+            return
+        }
         if (isBusy) return
         val rootUri = sourceUri ?: return
         val pending = photos.filter { !it.moved && it.originUri in originals &&

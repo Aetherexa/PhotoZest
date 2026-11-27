@@ -3,6 +3,7 @@ import {Album,ArrowLeft,Check,CheckCheck,ChevronRight,Folder,Image as ImageIcon,
 import {classifyPhoto,cityFromGps,inspectCanvas,likelyDuplicate,loadVision,parsePayment,qualityFromImage,readCaptureMetadata,readScreenshotText,releaseOcr,screenshotName,timeOfDay} from './engine';
 import type {Category,Quality,RecordPhoto,LoadedVision} from './engine';
 import './photozest.css';
+import { photoZestFeatures } from '../featureFlags.generated';
 
 const categories:Category[]=['Landscapes','Group photos','Selfies','Candids','Food','Portraits','Payment receipts','Screenshots','Needs review'];
 const limit=250;
@@ -24,7 +25,7 @@ export default function PhotoZest(){
  const [page,setPage]=useState<Page>('home');const [photos,setPhotos]=useState<RecordPhoto[]>([]);
  const [loading,setLoading]=useState(false);const [processed,setProcessed]=useState(0);const [total,setTotal]=useState(0);const [status,setStatus]=useState('');
  const [search,setSearch]=useState('');const [category,setCategory]=useState<Category|'All'>('All');const [place,setPlace]=useState('All places');const [showFilters,setShowFilters]=useState(false);
- const [enhanced,setEnhanced]=useState(true);const [ocr,setOcr]=useState(false);
+ const [enhanced,setEnhanced]=useState<boolean>(photoZestFeatures.enhancedRecognition);const [ocr,setOcr]=useState(false);
  const [selection,setSelection]=useState<Set<string>>(new Set());const [selectMode,setSelectMode]=useState(false);
  const [detail,setDetail]=useState<string|null>(null);const [collections,setCollections]=useState<Record<string,string[]>>({});
  const [newCollection,setNewCollection]=useState(false);const [collectionName,setCollectionName]=useState('');
@@ -40,10 +41,10 @@ export default function PhotoZest(){
  useEffect(()=>()=>{generation.current++;urls.current.forEach(u=>URL.revokeObjectURL(u));void releaseOcr();},[]);
  const clearSession=()=>{generation.current++;urls.current.forEach(u=>URL.revokeObjectURL(u));urls.current=[];metadataById.current.clear();setPhotos([]);setCollections({});setSelection(new Set());setSelectMode(false);setCategory('All');setSearch('');setPlace('All places');setPreferredCategory(null);};
  const scan=async(input:FileList|null,kind:'gallery'|'folder')=>{
-  if(!input)return;const picked=Array.from(input).filter(isPhoto).slice(0,limit);if(!picked.length){setNotice('Choose JPG, PNG, WebP or another supported image format.');return;}
+  if(!input)return;if(kind==='folder'&&!photoZestFeatures.folderImport){setNotice('Folder import is disabled in this release.');return;}const picked=Array.from(input).filter(isPhoto).slice(0,limit);if(!picked.length){setNotice('Choose JPG, PNG, WebP or another supported image format.');return;}
   clearSession();const run=++generation.current;setLoading(true);setProcessed(0);setTotal(picked.length);setStatus('Preparing on-device analysis…');setNotice('');
   let model:LoadedVision|null=null;
-  if(enhanced){try{model=await loadVision()}catch{if(run===generation.current)setNotice('Visual model unavailable. Using conservative quality and metadata analysis.');}}
+  if(enhanced&&photoZestFeatures.enhancedRecognition){try{model=await loadVision()}catch{if(run===generation.current)setNotice('Visual model unavailable. Using conservative quality and metadata analysis.');}}
   const output:RecordPhoto[]=[];
   for(let i=0;i<picked.length&&run===generation.current;i++){
    const file=picked[i];const url=URL.createObjectURL(file);urls.current.push(url);
@@ -58,7 +59,7 @@ export default function PhotoZest(){
     const evidence=(!screenshot&&model)?await inspectCanvas(canvas,model).catch(()=>null):null;
     const classification=classifyPhoto(q,evidence);
     let payment=null;let categoryNow:Category=screenshot?'Screenshots':classification.category;
-    if(screenshot&&ocr){const text=await readScreenshotText(canvas);payment=parsePayment(text);if(payment)categoryNow='Payment receipts';}
+    if(screenshot&&ocr&&photoZestFeatures.screenshotOcr){const text=await readScreenshotText(canvas);payment=parsePayment(text);if(payment)categoryNow='Payment receipts';}
     const duplicate=output.find(p=>p.category===categoryNow&&categoryNow!=='Needs review'&&categoryNow!=='Screenshots'&&categoryNow!=='Payment receipts'&&metadataById.current.has(p.id)&&likelyDuplicate(q,metadataById.current.get(p.id)!));
     const id=`${i}-${file.name}-${file.size}`;
     metadataById.current.set(id,q);
@@ -73,16 +74,18 @@ export default function PhotoZest(){
  };
  const toggle=(id:string)=>setSelection(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);return next;});
  const share=async()=>{
+  if(!photoZestFeatures.browserSharing){setNotice('Browser sharing is disabled in this release.');return;}
   const files=selectedPhotos.map(p=>p.file);if(!files.length)return;
   if(selectedPhotos.some(p=>p.payment)){if(!window.confirm('Payment screenshots may contain personal information. Share these original files?'))return;}
   if(!navigator.share||!navigator.canShare?.({files})){setNotice('This browser cannot share selected files. Open PhotoZest Android to share originals directly.');return;}
   try{await navigator.share({files,title:'Shared with PhotoZest'});}catch(e){if((e as Error).name!=='AbortError')setNotice('Sharing was not available in this browser.');}
  };
  const createCollection=()=>{
+  if(!photoZestFeatures.smartCollections){setNotice('Custom smart collections are disabled in this release.');return;}
   const name=collectionName.trim().slice(0,60);if(!name||!selectedPhotos.length)return;
   setCollections(prev=>({...prev,[name]:unique([...(prev[name]||[]),...selectedPhotos.map(p=>p.id)])}));setNewCollection(false);setCollectionName('');setSelectMode(false);setSelection(new Set());setPage('collections');setNotice(`Created smart collection “${name}”. No files were copied or moved.`);
  };
- const buttonPickGallery=()=>chooseFiles.current?.click(),buttonPickFolder=()=>chooseFolder.current?.click();
+ const buttonPickGallery=()=>chooseFiles.current?.click(),buttonPickFolder=()=>{if(photoZestFeatures.folderImport)chooseFolder.current?.click();};
  const leaveSelection=()=>{setSelectMode(false);setSelection(new Set());};
  const openCollection=(cat:Category)=>{setCategory(cat);setPlace('All places');setSearch('');setPage('photos');leaveSelection()};
  const categoryCounts=categories.filter(c=>(countByCategory.get(c)||0)>0);
@@ -91,19 +94,19 @@ export default function PhotoZest(){
   <input ref={chooseFolder} type="file" accept="image/*" multiple hidden {...{webkitdirectory:'',directory:''}} onChange={e=>void scan(e.currentTarget.files,'folder')}/>
   <div className="pf-shell">
    <div className="pf-header">
-    <a className="pf-brand" href={`${import.meta.env.BASE_URL}tools/photozest/`} onClick={e=>{e.preventDefault();setPage('home');leaveSelection()}}><span className="pf-logo">✦</span><span><b>PhotoZest</b><small>YOUR MEMORIES, REIMAGINED</small></span></a>
-    <div className="pf-header-right"><span className="pf-local"><ShieldCheck size={15}/> On-device</span><button type="button" className="pf-icon-btn" aria-label="PhotoZest settings" onClick={()=>setNotice('Settings: enhanced recognition and screenshot OCR can be changed below.') }><MoreHorizontal size={21}/></button></div>
+    <a className="pf-brand" href={import.meta.env.BASE_URL} onClick={e=>{e.preventDefault();setPage('home');leaveSelection()}}><span className="pf-logo">✦</span><span><b>PhotoZest</b><small>YOUR MEMORIES, REIMAGINED</small></span></a>
+    <div className="pf-header-right"><span className="pf-local"><ShieldCheck size={15}/> On-device</span><button type="button" className="pf-icon-btn" aria-label="PhotoZest settings" onClick={()=>setNotice('Options depend on the platform release profile.') }><MoreHorizontal size={21}/></button></div>
    </div>
    {page==='home'&&<>
     <label className="pf-search" aria-label="Search your photos"><Search size={23}/><input placeholder="Search photos, places, payments or tags" value={search} onChange={e=>{setSearch(e.target.value);if(photos.length)setPage('photos');}} onFocus={()=>{if(photos.length)setPage('photos')}}/></label>
-    <div className="pf-shortcuts"><button onClick={buttonPickGallery}><ImageIcon/><span>Gallery</span></button><button onClick={buttonPickFolder}><Folder/><span>Folder</span></button><button onClick={()=>{if(photos.length){openCollection('Payment receipts')}else{setPreferredCategory('Payment receipts');buttonPickGallery()}}}><Wallet/><span>Payments</span></button></div>
+    <div className="pf-shortcuts"><button onClick={buttonPickGallery}><ImageIcon/><span>Gallery</span></button>{photoZestFeatures.folderImport&&<button onClick={buttonPickFolder}><Folder/><span>Folder</span></button>}<button onClick={()=>{if(photos.length){openCollection('Payment receipts')}else{setPreferredCategory('Payment receipts');buttonPickGallery()}}}><Wallet/><span>Payments</span></button></div>
     <section className="pf-hero"><div className="pf-hero-inner"><div><h1>Start with<br/>your photos</h1><p>Pick your photos or a folder, and let PhotoZest organize them for you.</p></div><img className="pf-collage" src={`${import.meta.env.BASE_URL}photozest-hero.webp`} alt="Overlapping landscape, beach and group photo previews"/></div>
-     <div className="pf-hero-actions"><button className="pf-primary" onClick={buttonPickGallery}><ImageIcon size={20}/> Choose from Gallery</button><button className="pf-secondary" onClick={buttonPickFolder}><Folder size={20}/> Choose Folder</button></div>
+     <div className="pf-hero-actions"><button className="pf-primary" onClick={buttonPickGallery}><ImageIcon size={20}/> Choose from Gallery</button>{photoZestFeatures.folderImport&&<button className="pf-secondary" onClick={buttonPickFolder}><Folder size={20}/> Choose Folder</button>}</div>
     </section>
     <div className="pf-section-title"><h2>Smart collections</h2><button onClick={()=>setPage('collections')}>See all <ChevronRight size={16}/></button></div>
     {categoryCounts.length?<div className="pf-collection-grid">{categoryCounts.slice(0,4).map(c=>{const cover=photos.find(p=>p.category===c);return <button key={c} className="pf-collection" onClick={()=>openCollection(c)}>{cover&&<img src={cover.url} alt=""/>}<span><strong>{c}</strong><small>{countByCategory.get(c)} photos</small></span><ChevronRight size={16}/></button>})}</div>:<div className="pf-empty-collection"><Sparkles size={20}/><div><b>Your collections will appear here</b><p>Choose photos to discover landscapes, groups, screenshots and more.</p></div></div>}
     {Object.keys(collections).length>0&&<p className="pf-muted">You also have {Object.keys(collections).length} custom smart collection(s) in this session.</p>}
-    <div className="pf-preferences"><label><span>Enhanced scene recognition<small>Downloads AI model weights the first time; photos stay on this device.</small></span><input type="checkbox" checked={enhanced} onChange={e=>setEnhanced(e.target.checked)} disabled={loading}/></label><label><span>Payment screenshot OCR<small>Optional; may download OCR language data on first use.</small></span><input type="checkbox" checked={ocr} onChange={e=>setOcr(e.target.checked)} disabled={loading}/></label></div>
+    <div className="pf-preferences">{photoZestFeatures.enhancedRecognition&&<label><span>Enhanced scene recognition<small>Downloads AI model weights the first time; photos stay on this device.</small></span><input type="checkbox" checked={enhanced} onChange={e=>setEnhanced(e.target.checked)} disabled={loading}/></label>}{photoZestFeatures.screenshotOcr&&<label><span>Payment screenshot OCR<small>Optional; may download OCR language data on first use.</small></span><input type="checkbox" checked={ocr} onChange={e=>setOcr(e.target.checked)} disabled={loading}/></label>}</div>
    </>}
    {page==='photos'&&<>
     <div className="pf-page-title"><div><h1>Your photos</h1><p>{photos.length} originals indexed · stored only in this tab</p></div><button onClick={buttonPickGallery} aria-label="Add photos" className="pf-add">+ Add</button></div>
@@ -118,9 +121,9 @@ export default function PhotoZest(){
    {notice&&<div className="pf-toast" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={()=>setNotice('')}><X size={18}/></button></div>}
   </div>
   <nav className="pf-nav" aria-label="PhotoZest navigation"><button onClick={()=>{setPage('home');leaveSelection()}} className={page==='home'?'active':''}><Sparkles size={20}/>Home</button><button onClick={()=>{setPage('photos');leaveSelection()}} className={page==='photos'?'active':''}><ImageIcon size={20}/>Photos</button><button onClick={()=>{setPage('collections');leaveSelection()}} className={page==='collections'?'active':''}><Album size={20}/>Collections</button></nav>
-  {selectMode&&selection.size>0&&page==='photos'&&<div className="pf-selection-bar"><b>{selectedPhotos.length} selected</b><div><button onClick={()=>void share()}><Share2 size={18}/>Share originals</button><button onClick={()=>setNewCollection(true)}><Folder size={18}/>Create collection</button></div></div>}
+  {selectMode&&selection.size>0&&page==='photos'&&<div className="pf-selection-bar"><b>{selectedPhotos.length} selected</b><div>{photoZestFeatures.browserSharing&&<button onClick={()=>void share()}><Share2 size={18}/>Share originals</button>}{photoZestFeatures.smartCollections&&<button onClick={()=>setNewCollection(true)}><Folder size={18}/>Create collection</button>}</div></div>}
   {showFilters&&<div className="pf-scrim" onClick={()=>setShowFilters(false)}><section className="pf-modal" onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Advanced photo filters"><div className="pf-modal-heading"><h2>Filters</h2><button aria-label="Close filters" onClick={()=>setShowFilters(false)}><X/></button></div><label>Location<select value={place} onChange={e=>setPlace(e.target.value)}><option>All places</option>{Array.from(cityCounts.keys()).sort().map(c=><option key={c}>{c}</option>)}</select></label><p>Search can combine locations, dates, categories and recognized payment attributes. Location without image GPS stays unknown.</p><div className="pf-row"><button onClick={()=>{setPlace('All places');setCategory('All');setSearch('')}}>Reset</button><button className="pf-primary" onClick={()=>setShowFilters(false)}>View {visible.length} photos</button></div></section></div>}
-  {newCollection&&<div className="pf-scrim" onClick={()=>setNewCollection(false)}><section className="pf-modal" onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Create smart collection"><div className="pf-modal-heading"><h2>Create collection</h2><button onClick={()=>setNewCollection(false)} aria-label="Close"><X/></button></div><p>Collections are virtual in your browser. They never duplicate or relocate image files. Moving originals into real folders requires the Android app.</p><input maxLength={60} value={collectionName} onChange={e=>setCollectionName(e.target.value)} placeholder="Collection name" aria-label="Collection name"/><button disabled={!collectionName.trim()||!selectedPhotos.length} className="pf-primary" onClick={createCollection}>Create from {selectedPhotos.length} photos</button></section></div>}
+  {newCollection&&photoZestFeatures.smartCollections&&<div className="pf-scrim" onClick={()=>setNewCollection(false)}><section className="pf-modal" onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Create smart collection"><div className="pf-modal-heading"><h2>Create collection</h2><button onClick={()=>setNewCollection(false)} aria-label="Close"><X/></button></div><p>Collections are virtual in your browser. They never duplicate or relocate image files. Moving originals into real folders requires the Android app.</p><input maxLength={60} value={collectionName} onChange={e=>setCollectionName(e.target.value)} placeholder="Collection name" aria-label="Collection name"/><button disabled={!collectionName.trim()||!selectedPhotos.length} className="pf-primary" onClick={createCollection}>Create from {selectedPhotos.length} photos</button></section></div>}
   {focused&&<div className="pf-scrim" onClick={()=>setDetail(null)}><section className="pf-modal pf-detail" onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Photo details"><div className="pf-modal-heading"><h2>Photo details</h2><button onClick={()=>setDetail(null)} aria-label="Close details"><X/></button></div><img src={focused.url} alt={`Preview ${focused.file.name}`}/><p>{focused.file.name}</p><div className="pf-detail-info"><span>{focused.width} × {focused.height}</span><span>{focused.city||'Location unknown'}</span><span>{focused.captured||'Capture date unknown'}</span><span>{focused.reason}</span>{focused.payment&&<span>Payment evidence: {focused.payment.provider} · {focused.payment.amount?`₹${focused.payment.amount}`:'Amount not identified'} · {focused.payment.status} (verify manually)</span>}</div><label>Category<select value={focused.category} onChange={e=>setPhotos(prev=>prev.map(p=>p.id===focused.id?{...p,category:e.target.value as Category}:p))}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>City (manual correction)<input value={focused.city||''} onChange={e=>setPhotos(prev=>prev.map(p=>p.id===focused.id?{...p,city:e.target.value.trim()||null}:p))} placeholder="Unknown"/></label><p className="pf-tags">{focused.tags.map(t=><span key={t}>{t}</span>)}</p></section></div>}
   <p className="pf-footnote">Privacy-first: no photo uploads. On the web, smart collections don't move originals; native folder moves remain exclusive to PhotoZest Android.</p>
  </div>;
