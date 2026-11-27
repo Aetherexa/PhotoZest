@@ -47,7 +47,7 @@ struct ContentView: View {
             .background(Color(red: 0.97, green: 0.96, blue: 1.00).ignoresSafeArea())
             .navigationBarHidden(true)
             .safeAreaInset(edge: .bottom) {
-                if !library.selectedIDs.isEmpty {
+                if !library.selectedIDs.isEmpty && PhotoZestFeatureFlags.albumOrganization {
                     HStack {
                         Text("\(library.selectedIDs.count) selected").font(.subheadline).bold()
                         Spacer()
@@ -130,6 +130,7 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(lavender)
+            if PhotoZestFeatureFlags.libraryScan {
             Button {
                 Task { await library.scanRecentLibrary() }
             } label: {
@@ -139,6 +140,7 @@ struct ContentView: View {
             .buttonStyle(.bordered)
             .tint(lavender)
             .disabled(library.isAnalyzing)
+            }
         }
         .controlSize(.large)
     }

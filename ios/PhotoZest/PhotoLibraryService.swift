@@ -15,9 +15,10 @@ struct IndexedPhoto: Identifiable {
 }
 
 enum PhotoLibraryIssue: LocalizedError {
-    case permission, noSelection, outsideLibrary, invalidAlbum, failedToWrite
+    case permission, noSelection, outsideLibrary, invalidAlbum, failedToWrite, featureDisabled
     var errorDescription: String? {
         switch self {
+        case .featureDisabled: return "This feature is disabled in this PhotoZest release."
         case .permission: return "Grant Photos access in Settings to organize existing library images."
         case .noSelection: return "Select some images before creating an album."
         case .outsideLibrary: return "Selected photos aren't available for album changes under the current Photos permission."
@@ -66,14 +67,19 @@ final class PhotoLibraryService: ObservableObject {
             processed += 1
             return
         }
-        let vision = await Task.detached(priority: .userInitiated) {
-            VisionPhotoAnalyzer.analyze(bytes, enableOCR: false)
-        }.value
-        let category = RecognitionPolicy.category(
+        let vision: VisionEvidence
+        if PhotoZestFeatureFlags.onDeviceRecognition {
+            vision = await Task.detached(priority: .userInitiated) {
+                VisionPhotoAnalyzer.analyze(bytes, enableOCR: false)
+            }.value
+        } else {
+            vision = .init(faceCount: 0, centeredLargeFace: false, labels: [], recognizedText: nil)
+        }
+        let category = PhotoZestFeatureFlags.onDeviceRecognition ? RecognitionPolicy.category(
             faceCount: vision.faceCount,
             largeCenteredFace: vision.centeredLargeFace,
             isScreenshot: screenshot,
-            labels: vision.labels)
+            labels: vision.labels) : .needsReview
         items.append(.init(id: id, thumbnail: small, category: category,
                            labels: vision.labels, photosAssetIdentifier: sourceID,
                            capturedAt: captured))
@@ -99,6 +105,10 @@ final class PhotoLibraryService: ObservableObject {
     }
 
     func scanRecentLibrary() async {
+        guard PhotoZestFeatureFlags.libraryScan else {
+            notice = "Library scanning is disabled for this release."
+            return
+        }
         guard !isAnalyzing else { return }
         let status = await withCheckedContinuation { continuation in
             PHPhotoLibrary.requestAuthorization(for: .readWrite) {
@@ -154,6 +164,7 @@ final class PhotoLibraryService: ObservableObject {
     /// Only modifies album membership of existing, authorized PHAssets.
     /// No asset creation, copy, move, or deletion is requested.
     func addSelectedToAlbum(named raw: String) async throws {
+        guard PhotoZestFeatureFlags.albumOrganization else { throw PhotoLibraryIssue.featureDisabled }
         let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty && name.count <= 60 else { throw PhotoLibraryIssue.invalidAlbum }
         guard !selected.isEmpty else { throw PhotoLibraryIssue.noSelection }
