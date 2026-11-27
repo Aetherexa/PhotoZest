@@ -379,7 +379,7 @@ private fun PhotoFlowScreen(vm: PhotoFlowViewModel = viewModel()) {
                         }
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text("PhotoFlow", fontSize = 25.sp, fontWeight = FontWeight.Black,
+                            Text("PhotoZest", fontSize = 25.sp, fontWeight = FontWeight.Black,
                                 color = Ink, letterSpacing = (-0.9).sp)
                             Text("YOUR MEMORIES, REIMAGINED", fontSize = 8.sp,
                                 color = Muted, letterSpacing = 1.5.sp)
@@ -415,7 +415,7 @@ private fun PhotoFlowScreen(vm: PhotoFlowViewModel = viewModel()) {
                                     fontSize = 26.sp, fontWeight = FontWeight.Black,
                                     lineHeight = 29.sp, letterSpacing = (-0.8).sp)
                                 Spacer(Modifier.height(12.dp))
-                                Text("Choose photos or a folder. PhotoFlow organizes them for you.",
+                                Text("Choose photos or a folder. PhotoZest organizes them for you.",
                                     color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
                             }
                             Image(painter = androidx.compose.ui.res.painterResource(
@@ -497,7 +497,7 @@ private fun PhotoFlowScreen(vm: PhotoFlowViewModel = viewModel()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text("PhotoFlow", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold,
+                        Text("PhotoZest", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold,
                             color = Ink, modifier = Modifier.weight(1f))
                         TextButton(onClick = { chooseInput.launch(null) }, enabled = !vm.isBusy) {
                             Text("Folder", color = Muted, fontSize = 12.sp)
@@ -774,7 +774,7 @@ private fun PhotoFlowScreen(vm: PhotoFlowViewModel = viewModel()) {
             onDismissRequest = { confirmFinancialShare = false },
             title = { Text("Share sensitive screenshots?", color = Ink,
                 fontWeight = FontWeight.Bold) },
-            text = { Text("Your selection contains payment screenshots. Recipients may see names, transaction references, UPI IDs and financial amounts in the original images. PhotoFlow cannot redact those when sharing originals.",
+            text = { Text("Your selection contains payment screenshots. Recipients may see names, transaction references, UPI IDs and financial amounts in the original images. PhotoZest cannot redact those when sharing originals.",
                 fontSize = 13.sp, color = Ink) },
             confirmButton = { Button(onClick = {
                 confirmFinancialShare = false
@@ -792,7 +792,7 @@ private fun PhotoFlowScreen(vm: PhotoFlowViewModel = viewModel()) {
                 pendingSelection = null
             },
             title = { Text("Enable location tags?", color = Ink, fontWeight = FontWeight.Bold) },
-            text = { Text("PhotoFlow needs optional access to the GPS data already saved in your photos. " +
+            text = { Text("PhotoZest needs optional access to the GPS data already saved in your photos. " +
                 "It does not access your current location or send coordinates online. " +
                 "You can continue without this permission, but some cities may show as unknown.",
                 color = Muted, fontSize = 13.sp) },
@@ -1144,7 +1144,7 @@ private fun sharePhotos(context: Context, photos: List<PhotoItem>) {
             type = "image/*"
             putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            clipData = ClipData.newUri(context.contentResolver, "PhotoFlow selected photos", uris[0]).also { clips ->
+            clipData = ClipData.newUri(context.contentResolver, "PhotoZest selected photos", uris[0]).also { clips ->
                 uris.drop(1).forEach { clips.addItem(ClipData.Item(it)) }
             }
         }

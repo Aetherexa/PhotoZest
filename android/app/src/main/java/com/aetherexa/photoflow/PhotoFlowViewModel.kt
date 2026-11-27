@@ -293,7 +293,7 @@ class PhotoFlowViewModel(private val app: Application) : AndroidViewModel(app) {
                 message = "Move interrupted. $movedCount files moved; others remain in their original folders."
             } catch (error: Exception) {
                 phase = WorkflowPhase.ERROR
-                message = error.message ?: "Move failed; source photos were not deleted by PhotoFlow."
+                message = error.message ?: "Move failed; source photos were not deleted by PhotoZest."
             }
         }
     }
