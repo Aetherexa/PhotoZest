@@ -94,7 +94,7 @@ export default function PhotoZest(){
   <input ref={chooseFolder} type="file" accept="image/*" multiple hidden {...{webkitdirectory:'',directory:''}} onChange={e=>void scan(e.currentTarget.files,'folder')}/>
   <div className="pf-shell">
    <div className="pf-header">
-    <a className="pf-brand" href={`${import.meta.env.BASE_URL}tools/photozest/`} onClick={e=>{e.preventDefault();setPage('home');leaveSelection()}}><span className="pf-logo">✦</span><span><b>PhotoZest</b><small>YOUR MEMORIES, REIMAGINED</small></span></a>
+    <a className="pf-brand" href={import.meta.env.BASE_URL} onClick={e=>{e.preventDefault();setPage('home');leaveSelection()}}><span className="pf-logo">✦</span><span><b>PhotoZest</b><small>YOUR MEMORIES, REIMAGINED</small></span></a>
     <div className="pf-header-right"><span className="pf-local"><ShieldCheck size={15}/> On-device</span><button type="button" className="pf-icon-btn" aria-label="PhotoZest settings" onClick={()=>setNotice('Options depend on the platform release profile.') }><MoreHorizontal size={21}/></button></div>
    </div>
    {page==='home'&&<>
