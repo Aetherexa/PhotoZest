@@ -94,6 +94,7 @@ import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aetherexa.photoflow.core.Category
+import com.aetherexa.photoflow.core.PhotoZestFeatureFlags
 import com.aetherexa.photoflow.core.ResultsUiPolicy
 import com.aetherexa.photoflow.core.SmartTag
 import com.aetherexa.photoflow.core.PaymentProvider
@@ -343,11 +344,11 @@ private fun PhotoFlowScreen(vm: PhotoFlowViewModel = viewModel()) {
                             if (vm.inputKind == InputKind.GALLERY && vm.sourceUri == null)
                                 grantOriginalFolder.launch(null)
                             else chooseDestination.launch(null)
-                        }, enabled = actionable.isNotEmpty(),
+                        }, enabled = actionable.isNotEmpty() && PhotoZestFeatureFlags.originalFolderMoves,
                             modifier = Modifier.weight(1f).height(48.dp),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Lavender)) {
-                            Text("Create folders", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(if (PhotoZestFeatureFlags.originalFolderMoves) "Create folders" else "Moves unavailable", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                     if (actionPhotos.isEmpty()) {
@@ -468,13 +469,13 @@ private fun PhotoFlowScreen(vm: PhotoFlowViewModel = viewModel()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Private image recognition", modifier = Modifier.weight(1f),
                                     color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Switch(vm.useOnDeviceAI, { vm.useOnDeviceAI = it }, enabled = !vm.isBusy,
+                                Switch(vm.useOnDeviceAI && PhotoZestFeatureFlags.onDeviceRecognition, { vm.useOnDeviceAI = it && PhotoZestFeatureFlags.onDeviceRecognition }, enabled = !vm.isBusy && PhotoZestFeatureFlags.onDeviceRecognition,
                                     colors = SwitchDefaults.colors(checkedTrackColor = Lavender))
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Screenshot & payment OCR", modifier = Modifier.weight(1f),
                                     color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Switch(vm.useScreenshotOCR, { vm.useScreenshotOCR = it }, enabled = !vm.isBusy,
+                                Switch(vm.useScreenshotOCR && PhotoZestFeatureFlags.screenshotOcr, { vm.useScreenshotOCR = it && PhotoZestFeatureFlags.screenshotOcr }, enabled = !vm.isBusy && PhotoZestFeatureFlags.screenshotOcr,
                                     colors = SwitchDefaults.colors(checkedTrackColor = Lavender))
                             }
                             Text("Originals stay on your device. Moving photos always requires confirmation.",
