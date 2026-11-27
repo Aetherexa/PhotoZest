@@ -1,0 +1,9 @@
+{
+  "platform": "android",
+  "profile": "production",
+  "features": {
+    "onDeviceRecognition": true,
+    "screenshotOcr": false,
+    "originalFolderMoves": false
+  }
+}

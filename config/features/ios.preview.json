@@ -1,0 +1,9 @@
+{
+  "platform": "ios",
+  "profile": "preview",
+  "features": {
+    "onDeviceRecognition": true,
+    "libraryScan": true,
+    "albumOrganization": true
+  }
+}
