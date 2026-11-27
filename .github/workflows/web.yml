@@ -1,0 +1,96 @@
+name: Web | Build and GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'config/features/web.*.json'
+      - 'scripts/feature_flags.py'
+      - 'scripts/test_feature_flags.py'
+      - '.github/workflows/web.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'config/features/web.*.json'
+      - 'scripts/feature_flags.py'
+      - 'scripts/test_feature_flags.py'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Deploy Web production bundle to GitHub Pages (main only)'
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+jobs:
+  verify:
+    name: Web production-profile typecheck, tests and bundle
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate profiles and freeze Web production features
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_feature_flags.py'
+          python3 scripts/feature_flags.py --platform web --profile production
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies + test
+        working-directory: web
+        run: npm install --no-audit --no-fund && npm test
+      - name: Production build
+        working-directory: web
+        env:
+          PUBLIC_BASE_PATH: /PhotoZest/
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photozest-web-verified-${{ github.sha }}
+          path: web/dist/
+          retention-days: 14
+          if-no-files-found: error
+
+  deploy:
+    name: Web production → GitHub Pages
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-24.04
+    environment:
+      name: web-production
+      url: ${{ steps.pages.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/feature_flags.py --platform web --profile production
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build approved Web production artifact
+        working-directory: web
+        env:
+          PUBLIC_BASE_PATH: /PhotoZest/
+        run: npm install --no-audit --no-fund && npm test && npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - name: Publish GitHub Pages
+        id: pages
+        uses: actions/deploy-pages@v4
