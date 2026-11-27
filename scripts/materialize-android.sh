@@ -21,4 +21,15 @@ sed -i 's/com\.aetherexa\.photoflow\.compact/com.aetherexa.photozest/g' "$target
 sed -i 's/com\.aetherexa\.photoflow\.recognition/com.aetherexa.photozest/g' "$target/app/build.gradle.kts"
 sed -i 's/PhotoFlow/PhotoZest/g' "$target/app/src/main/res/values/strings.xml"
 # Store code must remain gated; policy definitions are not verified purchases.
+# Android UI includes some legacy hard-coded PhotoFlow product strings.
+# Change only user-facing text; preserve internal Kotlin class/package identifiers.
+main="$target/app/src/main/java/com/aetherexa/photoflow/MainActivity.kt"
+vm="$target/app/src/main/java/com/aetherexa/photoflow/PhotoFlowViewModel.kt"
+sed -i 's/Text("PhotoFlow"/Text("PhotoZest"/g' "$main"
+sed -i 's/PhotoFlow organizes/PhotoZest organizes/g' "$main"
+sed -i 's/PhotoFlow cannot/PhotoZest cannot/g' "$main"
+sed -i 's/PhotoFlow needs/PhotoZest needs/g' "$main"
+sed -i 's/PhotoFlow selected photos/PhotoZest selected photos/g' "$main"
+sed -i 's/deleted by PhotoFlow/deleted by PhotoZest/g' "$vm"
+sed -i 's/PhotoFlowAndroid/PhotoZestAndroid/g' "$target/settings.gradle.kts"
 echo "PhotoZest Android sources restored to $target"
