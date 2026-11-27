@@ -1,0 +1,27 @@
+name: PhotoZest
+options:
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  PhotoZestCore:
+    path: PhotoZestCore
+targets:
+  PhotoZest:
+    type: application
+    platform: iOS
+    sources:
+      - path: PhotoZest
+    dependencies:
+      - package: PhotoZestCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aetherexa.photozest.ios
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: PhotoZest
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "PhotoZest requests access only to the photos you choose to analyze and organize."
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "PhotoZest adds selected existing photos to albums only after confirmation."
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        CODE_SIGN_STYLE: Automatic
